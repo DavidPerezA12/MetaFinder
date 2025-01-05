@@ -1,14 +1,14 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import piexif
 from werkzeug.utils import secure_filename
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../frontend', static_url_path='/static')
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 
 @app.route('/')
 def home():
-    return "Welcome to MetaFinder!"
+    return send_from_directory('../frontend/html', 'index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
