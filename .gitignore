@@ -1,0 +1,43 @@
+# Byte-compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Entornos virtuales de Python
+env/
+venv/
+*.env
+
+# Archivos de configuración del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de logs
+*.log
+
+# Node.js (si se usa para frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+
+# Archivos temporales
+*.tmp
+*.bak
+*.old
+
+# Archivos específicos de MetaFinder
+frontend/node_modules/
+frontend/dist/
+backend/__pycache__/
+backend/instance/
+
+# Configuración personal
+*.env
+*.config
+

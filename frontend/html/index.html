@@ -8,6 +8,11 @@
 </head>
 <body>
     <h1>Welcome to MetaFinder</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="imageInput" name="image" accept="image/*">
+        <button type="submit">Upload Image</button>
+    </form>
+    <div id="metadata"></div>
     <script src="../js/app.js"></script>
 </body>
 </html>
