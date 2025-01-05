@@ -1,18 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MetaFinder</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <meta name="description" content="Herramienta para analizar metadatos de imágenes">
+    <title>MetaFinder - Explora tus imágenes</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap">
+    <link rel="stylesheet" href="../static/css/styles.css">
 </head>
 <body>
-    <h1>Welcome to MetaFinder</h1>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" id="imageInput" name="image" accept="image/*">
-        <button type="submit">Upload Image</button>
-    </form>
-    <div id="metadata"></div>
-    <script src="/static/js/app.js"></script>
+    <header>
+        <div class="header-container">
+            <h1>MetaFinder</h1>
+            <p>Descubre los secretos ocultos en tus imágenes</p>
+        </div>
+    </header>
+    
+    <main>
+        <section class="upload-section">
+            <div id="dropZone" class="drop-zone" aria-label="Zona de arrastrar y soltar">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="upload-content">
+                        <img src="../static/img/upload-icon.svg" alt="Ícono de subida" class="upload-icon">
+                        <p>Arrastra y suelta tu imagen aquí o</p>
+                        <label for="imageInput" class="custom-file-input">
+                            Selecciona un archivo
+                            <input type="file" id="imageInput" name="image" accept="image/*" hidden>
+                        </label>
+                        <p class="file-info">Formatos soportados: JPG, PNG, GIF (máx. 16MB)</p>
+                    </div>
+                    <div class="preview-container hidden">
+                        <img id="imagePreview" src="#" alt="Vista previa">
+                        <button type="submit" class="analyze-btn">Analizar Imagen</button>
+                    </div>
+                </form>
+            </div>
+            <div id="loadingIndicator" class="loading-indicator hidden">
+                <div class="spinner"></div>
+                <p>Analizando imagen...</p>
+            </div>
+        </section>
+
+        <section id="metadata" class="hidden result-section">
+            <h2>Metadatos de la Imagen</h2>
+            <div id="metadataContent" class="metadata-grid"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>MetaFinder © 2025</p>
+    </footer>
+    
+    <script src="../static/js/app.js"></script>
 </body>
 </html>
