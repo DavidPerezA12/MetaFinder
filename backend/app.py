@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from PIL import Image
-import piexif
+from PIL import Image, ExifTags
 from werkzeug.utils import secure_filename
 import os
 
@@ -30,7 +29,22 @@ def extract_metadata(image_path):
         image = Image.open(image_path)
         exif_data = image._getexif()
         if exif_data is not None:
-            return {TAGS.get(tag): value for tag, value in exif_data.items()}
+            metadata = {}
+            for tag, value in exif_data.items():
+                tag_name = ExifTags.TAGS.get(tag, tag)
+                if isinstance(value, bytes):
+                    try:
+                        value = value.decode('utf-8', 'ignore')
+                    except Exception as e:
+                        value = str(value)
+                elif isinstance(value, (tuple, int, float)):
+                    value = str(value)
+                elif isinstance(value, (Image.ExifTags.Rational, Image.ExifTags.IFDRational)):
+                    value = float(value)
+                else:
+                    value = str(value)
+                metadata[tag_name] = value
+            return metadata
         else:
             return {'error': 'No EXIF data found'}
     except Exception as e:
