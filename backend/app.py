@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
+from PIL import Image
 import piexif
 from werkzeug.utils import secure_filename
 import os
@@ -26,8 +27,12 @@ def upload_image():
 
 def extract_metadata(image_path):
     try:
-        exif_data = piexif.load(image_path)
-        return exif_data
+        image = Image.open(image_path)
+        exif_data = image._getexif()
+        if exif_data is not None:
+            return {TAGS.get(tag): value for tag, value in exif_data.items()}
+        else:
+            return {'error': 'No EXIF data found'}
     except Exception as e:
         return {'error': str(e)}
 
