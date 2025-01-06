@@ -1,20 +1,25 @@
 # MetaFinder
 
-MetaFinder es una aplicación web que permite extraer y visualizar los metadatos EXIF de imágenes de manera sencilla y eficiente.
+Aplicación web moderna para extraer y visualizar metadatos EXIF de imágenes, con interfaz glass-morphism y procesamiento seguro de archivos.
 
 ## Características
 
-- Interfaz web intuitiva para subir imágenes
-- Extracción de metadatos EXIF completos
-- Visualización de datos en formato JSON
-- Soporte para múltiples formatos de imagen
-- Backend desarrollado en Flask
-- Frontend responsive y moderno
+- Interfaz moderna con diseño glass-morphism
+- Subida de imágenes por drag & drop
+- Visualización de metadatos en categorías:
+  - Información básica
+  - Información técnica
+  - Datos GPS
+  - Otros detalles
+- Validación segura de archivos
+- Soporte para múltiples formatos (JPG, PNG, GIF, TIFF, BMP)
+- Límite de tamaño: 16MB
+- Diseño responsive
 
-## Requisitos Previos
+## Requisitos
 
-- Python 3.x
-- pip (gestor de paquetes de Python)
+- Python 3.6+
+- pip
 
 ## Instalación
 
@@ -24,87 +29,93 @@ git clone https://github.com/DavidPerezA12/MetaFinder.git
 cd MetaFinder
 ```
 
-2. Crear y activar un entorno virtual:
+2. Crear y activar entorno virtual:
 ```bash
 python -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 ```
 
-3. Instalar las dependencias del backend:
+3. Instalar dependencias:
 ```bash
 pip install -r requirements.txt
 ```
-
-4. Crear el directorio para uploads:
-```bash
-mkdir backend/uploads
-```
-
-## Uso
-
-1. Iniciar el servidor Flask:
-```bash
-cd backend
-python app.py
-```
-
-2. Abrir un navegador web y visitar:
-```
-http://localhost:5000
-```
-
-3. Seleccionar una imagen usando el botón de subida o arrastrando el archivo
-4. Los metadatos se mostrarán automáticamente después de la subida
 
 ## Estructura del Proyecto
 
 ```
 MetaFinder/
-│
-├── backend/
-│   ├── app.py
-│   ├── requirements.txt
-│   └── uploads/
-│
 ├── frontend/
-│   ├── css/
-│   │   └── styles.css
 │   ├── html/
 │   │   └── index.html
-│   └── js/
-│       └── app.js
-│
-└── README.md
+│   └── static/
+│       ├── css/
+│       ├── js/
+│       └── img/
+├── scripts/
+│   └── processor.py
+├── uploads/
+├── app.py
+└── requirements.txt
 ```
 
-## Tecnologías Utilizadas
+## Uso
 
-- **Backend**:
-  - Flask (Framework web)
-  - Pillow (Procesamiento de imágenes)
-  - piexif (Extracción de metadatos EXIF)
+1. Iniciar servidor:
+```bash
+python app.py
+```
 
-- **Frontend**:
-  - HTML5
-  - CSS3
-  - JavaScript (Vanilla)
+2. Abrir en navegador:
+```
+http://localhost:5000
+```
+
+## Características Técnicas
+
+### Backend
+- Flask con CORS habilitado
+- Validación de tipos mediante python-magic
+- Procesamiento de metadatos con piexif
+- Manejo seguro de archivos temporales
+- Generación de hash para integridad
+
+### Frontend
+- Diseño glass-morphism moderno
+- JavaScript vanilla para manipulación del DOM
+- Previsualización de imágenes en tiempo real
+- Interfaz responsive
+
+## API
+
+### POST /upload
+- Acepta: Imagen (multipart/form-data)
+- Retorna: JSON con metadatos categorizados
+- Validaciones:
+  - Tipo de archivo
+  - Tamaño máximo
+  - Integridad
+
+## Seguridad
+
+- Validación de tipos MIME
+- Limpieza automática de archivos temporales
+- Nombres de archivo seguros
+- Control de tamaño máximo
 
 ## Contribución
 
-Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
-
-1. Fork el proyecto
-2. Crea una nueva rama (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+1. Fork del repositorio
+2. Crear rama feature (`git checkout -b feature/NuevaFuncion`)
+3. Commit (`git commit -m 'Agrega nueva función'`)
+4. Push (`git push origin feature/NuevaFuncion`)
+5. Crear Pull Request
 
 ## Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+Proyecto bajo la Licencia MIT
 
 ## Contacto
 
 David Pérez - [@DavidPerezA12](https://github.com/DavidPerezA12)
 
-Link del Proyecto: [https://github.com/DavidPerezA12/MetaFinder]
+Repositorio: [https://github.com/DavidPerezA12/MetaFinder]

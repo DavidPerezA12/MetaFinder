@@ -139,35 +139,33 @@ document.addEventListener('DOMContentLoaded', function() {
             this.elements.gpsInfo.innerHTML = '';
             this.elements.otherInfo.innerHTML = '';
 
-            // Mostrar datos por categoría
-            if (metadata.información_básica) {
+            // Mostrar datos por categoría con explicaciones
+            if (metadata.información_básica && Object.keys(metadata.información_básica).length > 0) {
+                this.elements.basicInfo.innerHTML = '<p>Datos generales sobre el archivo, como el nombre, tamaño y tipo.</p>';
                 this.renderMetadataSection(metadata.información_básica, this.elements.basicInfo);
+            } else {
+                this.elements.basicInfo.innerHTML = '<p>No hay información básica disponible.</p>';
             }
-            
-            if (metadata.información_técnica) {
+
+            if (metadata.información_técnica && Object.keys(metadata.información_técnica).length > 0) {
+                this.elements.technicalInfo.innerHTML = '<p>Detalles técnicos del archivo, como la resolución, el formato y la duración.</p>';
                 this.renderMetadataSection(metadata.información_técnica, this.elements.technicalInfo);
+            } else {
+                this.elements.technicalInfo.innerHTML = '<p>No hay información técnica disponible.</p>';
             }
-            
-            if (metadata.información_gps) {
+
+            if (metadata.información_gps && Object.keys(metadata.información_gps).length > 0) {
+                this.elements.gpsInfo.innerHTML = '<p>Información de geolocalización, como la latitud, longitud y altitud.</p>';
                 this.renderMetadataSection(metadata.información_gps, this.elements.gpsInfo);
+            } else {
+                this.elements.gpsInfo.innerHTML = '<p>No hay datos GPS disponibles.</p>';
             }
-            
-            if (metadata.otros) {
+
+            if (metadata.otros && Object.keys(metadata.otros).length > 0) {
+                this.elements.otherInfo.innerHTML = '<p>Información adicional que no encaja en las categorías anteriores.</p>';
                 this.renderMetadataSection(metadata.otros, this.elements.otherInfo);
-            }
-
-            // Ejemplo: Si quisieras mostrar la info del archivo
-            if (metadata.file_info) {
-                const fileInfo = metadata.file_info;
-                const item = document.createElement('div');
-                item.className = 'metadata-item';
-                item.innerHTML = `
-                    <span class="metadata-key">Hash (SHA-256)</span>
-                    <span class="metadata-value">${fileInfo.hash}</span>
-                `;
-                this.elements.otherInfo.appendChild(item);
-
-                // Puedes mostrar más datos como filename, size, timestamp, etc.
+            } else {
+                this.elements.otherInfo.innerHTML = '<p>No hay otros metadatos disponibles.</p>';
             }
 
             this.elements.resultSection.classList.remove('hidden');
@@ -205,7 +203,6 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         showError(message) {
-   
             alert(message);
         }
     };
