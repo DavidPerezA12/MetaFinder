@@ -1,17 +1,15 @@
 # MetaFinder
 
-Aplicación web moderna para extraer y visualizar metadatos EXIF de imágenes, con interfaz glass-morphism y procesamiento seguro de archivos.
+Aplicación web para extraer y visualizar metadatos EXIF de imágenes, con interfaz glass-morphism y procesamiento seguro de archivos.
 
 ## Características
 
-- Interfaz moderna con diseño glass-morphism
 - Subida de imágenes por drag & drop
 - Visualización de metadatos en categorías:
   - Información básica
   - Información técnica
   - Datos GPS
   - Otros detalles
-- Validación segura de archivos
 - Soporte para múltiples formatos (JPG, PNG, GIF, TIFF, BMP)
 - Límite de tamaño: 16MB
 - Diseño responsive
@@ -94,21 +92,6 @@ http://localhost:5000
   - Tipo de archivo
   - Tamaño máximo
   - Integridad
-
-## Seguridad
-
-- Validación de tipos MIME
-- Limpieza automática de archivos temporales
-- Nombres de archivo seguros
-- Control de tamaño máximo
-
-## Contribución
-
-1. Fork del repositorio
-2. Crear rama feature (`git checkout -b feature/NuevaFuncion`)
-3. Commit (`git commit -m 'Agrega nueva función'`)
-4. Push (`git push origin feature/NuevaFuncion`)
-5. Crear Pull Request
 
 ## Licencia
 
