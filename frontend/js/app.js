@@ -4,14 +4,15 @@ document.addEventListener('DOMContentLoaded', function() {
             form: document.getElementById('uploadForm'),
             fileInput: document.getElementById('imageInput'),
             dropZone: document.getElementById('dropZone'),
-            metadataDisplay: document.getElementById('metadata'),
-            loadingIndicator: document.getElementById('loadingIndicator')
-        },
-
-        state: {
-            isLoading: false,
-            error: null,
-            metadata: null
+            previewContainer: document.getElementById('previewContainer'),
+            imagePreview: document.getElementById('imagePreview'),
+            analyzeButton: document.getElementById('analyzeButton'),
+            loadingIndicator: document.getElementById('loadingIndicator'),
+            resultSection: document.getElementById('resultSection'),
+            basicInfo: document.getElementById('basicInfo').querySelector('.metadata-content'),
+            technicalInfo: document.getElementById('technicalInfo').querySelector('.metadata-content'),
+            gpsInfo: document.getElementById('gpsInfo').querySelector('.metadata-content'),
+            otherInfo: document.getElementById('otherInfo').querySelector('.metadata-content')
         },
 
         init() {
@@ -20,8 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         bindEvents() {
-            this.elements.form.addEventListener('submit', this.handleSubmit.bind(this));
             this.elements.fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+            this.elements.analyzeButton.addEventListener('click', this.handleAnalyze.bind(this));
         },
 
         setupDragAndDrop() {
@@ -32,22 +33,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
 
-            this.elements.dropZone.addEventListener('drop', this.handleDrop.bind(this));
             this.elements.dropZone.addEventListener('dragover', () => {
                 this.elements.dropZone.classList.add('dragover');
             });
+
             this.elements.dropZone.addEventListener('dragleave', () => {
                 this.elements.dropZone.classList.remove('dragover');
             });
-        },
 
-        async handleSubmit(event) {
-            event.preventDefault();
-            if (!this.elements.fileInput.files.length) {
-                this.showError('Por favor, selecciona una imagen.');
-                return;
-            }
-            await this.uploadFile(this.elements.fileInput.files[0]);
+            this.elements.dropZone.addEventListener('drop', this.handleDrop.bind(this));
         },
 
         handleFileSelect(event) {
@@ -60,8 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
         handleDrop(event) {
             const file = event.dataTransfer.files[0];
             if (file) {
-                this.validateAndPreviewFile(file);
                 this.elements.fileInput.files = event.dataTransfer.files;
+                this.validateAndPreviewFile(file);
             }
             this.elements.dropZone.classList.remove('dragover');
         },
@@ -84,15 +78,26 @@ document.addEventListener('DOMContentLoaded', function() {
         previewImage(file) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                const preview = document.getElementById('imagePreview');
-                preview.src = e.target.result;
-                preview.style.display = 'block';
+                this.elements.imagePreview.src = e.target.result;
+                this.elements.previewContainer.classList.remove('hidden');
+                this.elements.resultSection.classList.add('hidden');
             };
             reader.readAsDataURL(file);
         },
 
+        async handleAnalyze(event) {
+            event.preventDefault();
+            
+            if (!this.elements.fileInput.files.length) {
+                this.showError('Por favor, selecciona una imagen primero.');
+                return;
+            }
+
+            await this.uploadFile(this.elements.fileInput.files[0]);
+        },
+
         async uploadFile(file) {
-            this.setState({ isLoading: true, error: null });
+            this.setLoading(true);
             
             const formData = new FormData();
             formData.append('image', file);
@@ -113,42 +118,82 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 this.showError(`Error al procesar la imagen: ${error.message}`);
             } finally {
-                this.setState({ isLoading: false });
+                this.setLoading(false);
             }
+        },
+
+        setLoading(isLoading) {
+            this.elements.loadingIndicator.classList.toggle('hidden', !isLoading);
+            this.elements.analyzeButton.disabled = isLoading;
         },
 
         displayMetadata(metadata) {
-            const formatted = this.formatMetadataDisplay(metadata);
-            this.elements.metadataDisplay.innerHTML = formatted;
-        },
+            if (metadata.error || metadata.warning) {
+                this.showError(metadata.error || metadata.warning);
+                return;
+            }
 
-        formatMetadataDisplay(metadata) {
-            if (metadata.error) {
-                return `<div class="error">${metadata.error}</div>`;
+            // Limpiar contenedores
+            this.elements.basicInfo.innerHTML = '';
+            this.elements.technicalInfo.innerHTML = '';
+            this.elements.gpsInfo.innerHTML = '';
+            this.elements.otherInfo.innerHTML = '';
+
+            // Mostrar datos por categoría
+            if (metadata.información_básica) {
+                this.renderMetadataSection(metadata.información_básica, this.elements.basicInfo);
             }
             
-            return `
-                <div class="metadata-container">
-                    ${Object.entries(metadata).map(([section, data]) => `
-                        <div class="metadata-section">
-                            <h3>${this.formatSectionTitle(section)}</h3>
-                            <div class="metadata-content">
-                                ${Object.entries(data).map(([key, value]) => `
-                                    <div class="metadata-item">
-                                        <span class="metadata-key">${this.formatKey(key)}:</span>
-                                        <span class="metadata-value">${this.formatValue(value)}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+            if (metadata.información_técnica) {
+                this.renderMetadataSection(metadata.información_técnica, this.elements.technicalInfo);
+            }
+            
+            if (metadata.información_gps) {
+                this.renderMetadataSection(metadata.información_gps, this.elements.gpsInfo);
+            }
+            
+            if (metadata.otros) {
+                this.renderMetadataSection(metadata.otros, this.elements.otherInfo);
+            }
+
+            this.elements.resultSection.classList.remove('hidden');
+            this.elements.resultSection.scrollIntoView({ behavior: 'smooth' });
         },
 
-        formatSectionTitle(section) {
-            return section.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        renderMetadataSection(data, container) {
+            Object.entries(data).forEach(([key, value]) => {
+                const item = document.createElement('div');
+                item.className = 'metadata-item';
+                item.innerHTML = `
+                    <span class="metadata-key">${this.formatKey(key)}</span>
+                    <span class="metadata-value">${this.formatValue(value)}</span>
+                `;
+                container.appendChild(item);
+            });
         },
 
         formatKey(key) {
-            return key.replace(/([A-Z])/g, ' $1
+            return key
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/_/g, ' ')
+                .trim()
+                .replace(/\b\w/g, l => l.toUpperCase());
+        },
+
+        formatValue(value) {
+            if (value === null || value === undefined) {
+                return 'No disponible';
+            }
+            if (typeof value === 'object') {
+                return JSON.stringify(value, null, 2);
+            }
+            return String(value);
+        },
+
+        showError(message) {
+            alert(message);
+        }
+    };
+
+    MetaFinder.init();
+});

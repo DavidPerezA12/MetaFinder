@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify, send_from_directory, abort
+import os
+import logging
+from flask import Flask, request, jsonify, send_from_directory
 from PIL import Image, ExifTags
 from werkzeug.utils import secure_filename
 import piexif
-import os
-import logging
-from datetime import datetime
 
 # Configurar logging
 logging.basicConfig(
@@ -19,6 +18,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'tiff', 'bmp'}
 
 def allowed_file(filename):
+    """Verifica si el archivo tiene una extensión permitida."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')

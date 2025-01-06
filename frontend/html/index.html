@@ -12,7 +12,7 @@
     <header>
         <div class="header-container">
             <h1>MetaFinder</h1>
-            <p>Descubre los secretos ocultos en tus imágenes</p>
+            <p>Analiza los metadatos de tus imágenes</p>
         </div>
     </header>
     
@@ -29,21 +29,40 @@
                         </label>
                         <p class="file-info">Formatos soportados: JPG, PNG, GIF (máx. 16MB)</p>
                     </div>
-                    <div class="preview-container hidden">
-                        <img id="imagePreview" src="#" alt="Vista previa">
-                        <button type="submit" class="analyze-btn">Analizar Imagen</button>
-                    </div>
                 </form>
             </div>
+
+            <div class="preview-container hidden" id="previewContainer">
+                <img id="imagePreview" src="#" alt="Vista previa">
+                <button id="analyzeButton" class="analyze-btn">Analizar Imagen</button>
+            </div>
+
             <div id="loadingIndicator" class="loading-indicator hidden">
                 <div class="spinner"></div>
                 <p>Analizando imagen...</p>
             </div>
         </section>
 
-        <section id="metadata" class="hidden result-section">
+        <section id="resultSection" class="result-section hidden">
             <h2>Metadatos de la Imagen</h2>
-            <div id="metadataContent" class="metadata-grid"></div>
+            <div class="metadata-grid">
+                <div id="basicInfo" class="metadata-category">
+                    <h3>Información Básica</h3>
+                    <div class="metadata-content"></div>
+                </div>
+                <div id="technicalInfo" class="metadata-category">
+                    <h3>Información Técnica</h3>
+                    <div class="metadata-content"></div>
+                </div>
+                <div id="gpsInfo" class="metadata-category">
+                    <h3>Información GPS</h3>
+                    <div class="metadata-content"></div>
+                </div>
+                <div id="otherInfo" class="metadata-category">
+                    <h3>Otros Datos</h3>
+                    <div class="metadata-content"></div>
+                </div>
+            </div>
         </section>
     </main>
 
