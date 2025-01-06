@@ -4,7 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Herramienta para analizar metadatos de imágenes">
+    <meta name="theme-color" content="#2c5364">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="MetaFinder - Explora tus imágenes">
+    <meta property="og:description" content="Herramienta para analizar metadatos de imágenes">
     <title>MetaFinder - Explora tus imágenes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preload" href="../static/css/styles.css" as="style">
+    <link rel="preload" href="../static/js/app.js" as="script">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap">
     <link rel="stylesheet" href="../static/css/styles.css">
 </head>
@@ -33,11 +40,11 @@
             </div>
 
             <div class="preview-container hidden" id="previewContainer">
-                <img id="imagePreview" src="#" alt="Vista previa">
+                <img id="imagePreview" src="#" alt="Vista previa de la imagen">
                 <button id="analyzeButton" class="analyze-btn">Analizar Imagen</button>
             </div>
 
-            <div id="loadingIndicator" class="loading-indicator hidden">
+            <div id="loadingIndicator" class="loading-indicator hidden" role="status" aria-live="polite">
                 <div class="spinner"></div>
                 <p>Analizando imagen...</p>
             </div>
@@ -55,11 +62,11 @@
                     <div class="metadata-content"></div>
                 </div>
                 <div id="gpsInfo" class="metadata-category">
-                    <h3>Información GPS</h3>
+                    <h3>Datos GPS</h3>
                     <div class="metadata-content"></div>
                 </div>
                 <div id="otherInfo" class="metadata-category">
-                    <h3>Otros Datos</h3>
+                    <h3>Otros Detalles</h3>
                     <div class="metadata-content"></div>
                 </div>
             </div>

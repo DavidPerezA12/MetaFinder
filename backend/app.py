@@ -1,25 +1,85 @@
 import os
 import logging
-from flask import Flask, request, jsonify, send_from_directory
-from PIL import Image, ExifTags
+import hashlib
+import magic  # Para validación del tipo MIME
+from datetime import datetime
+from flask import Flask, request, jsonify, send_from_directory, abort
+from flask_cors import CORS
+from PIL import Image
 from werkzeug.utils import secure_filename
-import piexif
+from typing import Dict, Any
+
+# Importamos la función de extracción de metadatos desde nuestro archivo separado
+from scripts.processor import extract_metadata, ImageProcessingError
 
 # Configurar logging
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='/static')
-app.config['UPLOAD_FOLDER'] = 'uploads/'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'tiff', 'bmp'}
+CORS(app)  # Habilitar CORS para desarrollo
 
-def allowed_file(filename):
-    """Verifica si el archivo tiene una extensión permitida."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# Configuración
+app.config.update(
+    UPLOAD_FOLDER='uploads/',
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max file size
+    ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif', 'tiff', 'bmp'},
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'default-secret-key')
+)
+
+class FileTypeNotAllowedError(Exception):
+    """Excepción personalizada cuando el archivo no es de tipo permitido."""
+    pass
+
+def allowed_file(filename: str) -> bool:
+    """
+    Verifica si el archivo tiene una extensión permitida.
+    
+    Args:
+        filename (str): Nombre del archivo a verificar
+        
+    Returns:
+        bool: True si la extensión está permitida, False en caso contrario
+    """
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def validate_image_type(filepath: str) -> bool:
+    """
+    Valida el tipo MIME del archivo usando python-magic.
+    
+    Args:
+        filepath (str): Ruta del archivo a validar
+        
+    Returns:
+        bool: True si es un tipo de imagen válido, de lo contrario False
+    """
+    mime_type = magic.from_file(filepath, mime=True)
+    logger.debug(f"Tipo MIME detectado: {mime_type}")
+    return mime_type.startswith('image/')
+
+def get_file_hash(file_path: str) -> str:
+    """
+    Genera un hash SHA-256 del archivo.
+    
+    Args:
+        file_path (str): Ruta al archivo
+        
+    Returns:
+        str: Hash SHA-256 del archivo
+    """
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
 
 @app.route('/')
 def home():
@@ -44,162 +104,59 @@ def upload_image():
             
         if not allowed_file(file.filename):
             return jsonify({'error': 'Tipo de archivo no permitido'}), 400
-            
+        
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         
-        # Verificar que el directorio de subida exista
-        if not os.path.exists(app.config['UPLOAD_FOLDER']):
-            os.makedirs(app.config['UPLOAD_FOLDER'])
+        # Aseguramos la carpeta de uploads
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         
-        # Guardar archivo temporalmente
         file.save(filepath)
         logger.debug(f"Archivo guardado en: {filepath}")
+
+        # Validación adicional con python-magic
+        if not validate_image_type(filepath):
+            os.remove(filepath)
+            return jsonify({'error': 'El archivo no corresponde a una imagen válida'}), 400
         
         try:
+            file_hash = get_file_hash(filepath)
+            
+            # Llamamos a nuestra función de extracción de metadatos desde processor.py
             metadata = extract_metadata(filepath)
+            
+            # Agregar información adicional
+            metadata['file_info'] = {
+                'hash': file_hash,
+                'timestamp': datetime.now().isoformat(),
+                'filename': filename,
+                'size': os.path.getsize(filepath)
+            }
+            
             return jsonify(metadata)
         finally:
-            # Limpiar archivo temporal
+            # Borramos el archivo temporal para no saturar el servidor
             if os.path.exists(filepath):
                 os.remove(filepath)
                 logger.debug(f"Archivo temporal eliminado: {filepath}")
     
+    except FileTypeNotAllowedError as e:
+        logger.error(f"Error de tipo de archivo: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Tipo de archivo no permitido'}), 400
+    except ImageProcessingError as e:
+        logger.error(f"Error en el procesamiento de la imagen: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error al procesar la imagen'}), 500
     except Exception as e:
         logger.error(f"Error en upload_image: {str(e)}", exc_info=True)
         return jsonify({'error': 'Error interno del servidor'}), 500
 
-def extract_metadata(image_path):
-    """
-    Extrae los metadatos EXIF de una imagen.
-    
-    Args:
-        image_path: Ruta al archivo de imagen
-        
-    Returns:
-        dict: Metadatos de la imagen
-    """
-    logger.debug(f"Intentando extraer metadatos de: {image_path}")
-    
-    try:
-        with Image.open(image_path) as image:
-            logger.debug(f"Formato de imagen: {image.format}")
-            logger.debug(f"Modo de imagen: {image.mode}")
-            
-            metadata = {}
-            
-            # Intentar primero con piexif
-            try:
-                exif_dict = piexif.load(image_path)
-                if exif_dict:
-                    logger.debug("Datos EXIF encontrados con piexif")
-                    for ifd in exif_dict:
-                        if ifd == "thumbnail":
-                            continue
-                        if isinstance(exif_dict[ifd], dict):
-                            for tag_id, value in exif_dict[ifd].items():
-                                try:
-                                    tag_name = piexif.TAGS[ifd][tag_id]["name"]
-                                    if isinstance(value, bytes):
-                                        try:
-                                            value = value.decode('utf-8', 'ignore')
-                                        except:
-                                            value = value.hex()
-                                    elif isinstance(value, tuple) and len(value) == 2:
-                                        if value[1] != 0:
-                                            value = value[0] / value[1]
-                                    metadata[tag_name] = value
-                                except KeyError:
-                                    metadata[f"Unknown_{ifd}_{tag_id}"] = str(value)
-                    
-                    if metadata:
-                        logger.debug("Metadatos extraídos con éxito usando piexif")
-                        return format_metadata(metadata)
-            
-            except Exception as e:
-                logger.debug(f"Error con piexif: {str(e)}")
-            
-            # Intentar con PIL como respaldo
-            logger.debug("Intentando con PIL...")
-            exif_data = image._getexif()
-            if exif_data is not None:
-                logger.debug("Datos EXIF encontrados con PIL")
-                for tag, value in exif_data.items():
-                    tag_name = ExifTags.TAGS.get(tag, tag)
-                    if isinstance(value, bytes):
-                        try:
-                            value = value.decode('utf-8', 'ignore')
-                        except:
-                            value = value.hex()
-                    elif isinstance(value, (tuple, int, float)):
-                        value = str(value)
-                    metadata[tag_name] = value
-                
-                if metadata:
-                    logger.debug("Metadatos extraídos con éxito usando PIL")
-                    return format_metadata(metadata)
-            
-            # Si no se encontraron metadatos
-            logger.debug("No se encontraron metadatos")
-            return {
-                'warning': 'No se encontraron metadatos EXIF',
-                'detalles': 'La imagen podría no contener metadatos EXIF o estar en un formato diferente.',
-                'info_archivo': {
-                    'formato': image.format,
-                    'tamaño': os.path.getsize(image_path),
-                    'modo': image.mode,
-                    'dimensiones': image.size,
-                    'nombre': os.path.basename(image_path)
-                }
-            }
+@app.errorhandler(400)
+def bad_request_error(error):
+    return jsonify({'error': str(error.description)}), 400
 
-    except Exception as e:
-        logger.error(f"Error al procesar la imagen: {str(e)}", exc_info=True)
-        return {
-            'error': str(e),
-            'detalles': 'Error al procesar los metadatos de la imagen',
-            'info_archivo': {
-                'tamaño': os.path.getsize(image_path),
-                'nombre': os.path.basename(image_path)
-            }
-        }
-
-def format_metadata(metadata):
-    """
-    Formatea los metadatos para una mejor presentación.
-    
-    Args:
-        metadata: Dict con metadatos crudos
-        
-    Returns:
-        dict: Metadatos formateados y organizados
-    """
-    formatted = {
-        'información_básica': {},
-        'información_técnica': {},
-        'información_gps': {},
-        'otros': {}
-    }
-    
-    # Mapeo de campos comunes
-    basic_fields = {'Make', 'Model', 'Software', 'DateTime', 'Artist', 'Copyright'}
-    technical_fields = {'ExifImageWidth', 'ExifImageHeight', 'XResolution', 'YResolution', 
-                       'ExposureTime', 'FNumber', 'ISOSpeedRatings', 'FocalLength'}
-    gps_fields = {'GPSLatitude', 'GPSLongitude', 'GPSAltitude', 'GPSTimeStamp'}
-    
-    for key, value in metadata.items():
-        if key in basic_fields:
-            formatted['información_básica'][key] = value
-        elif key in technical_fields:
-            formatted['información_técnica'][key] = value
-        elif key in gps_fields:
-            formatted['información_gps'][key] = value
-        else:
-            formatted['otros'][key] = value
-    
-    return formatted
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': str(error.description)}), 500
 
 if __name__ == '__main__':
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-    app.run(debug=True)
+   app.run(debug=True)

@@ -156,6 +156,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.renderMetadataSection(metadata.otros, this.elements.otherInfo);
             }
 
+            // Ejemplo: Si quisieras mostrar la info del archivo
+            if (metadata.file_info) {
+                const fileInfo = metadata.file_info;
+                const item = document.createElement('div');
+                item.className = 'metadata-item';
+                item.innerHTML = `
+                    <span class="metadata-key">Hash (SHA-256)</span>
+                    <span class="metadata-value">${fileInfo.hash}</span>
+                `;
+                this.elements.otherInfo.appendChild(item);
+
+                // Puedes mostrar más datos como filename, size, timestamp, etc.
+            }
+
             this.elements.resultSection.classList.remove('hidden');
             this.elements.resultSection.scrollIntoView({ behavior: 'smooth' });
         },
@@ -191,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         showError(message) {
+   
             alert(message);
         }
     };

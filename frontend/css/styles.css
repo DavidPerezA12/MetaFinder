@@ -158,84 +158,6 @@ header {
 
 /* Sección de resultados */
 .result-section {
-    max-width: 1000px;
-    margin: 2rem auto;
-    padding: 2rem;
-    background: var(--glass-bg);
-    border-radius: 1rem;
-    backdrop-filter: var(--glass-blur);
-    box-shadow: var(--glass-shadow);
-}
-
-.metadata-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    padding: 1rem;
-}
-
-/* Footer */
-footer {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    padding: 1rem 2rem;
-    text-align: center;
-    border-top: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    margin-top: auto;
-}
-
-footer p {
-    margin: 0;
-    font-size: 1rem;
-    color: var(--text-light);
-}
-
-/* Utilidades */
-.hidden {
-    display: none !important;
-}
-
-/* Animaciones */
-@keyframes slideDown {
-    from {
-        transform: translateY(-30px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .header-container h1 {
-        font-size: 2.5rem;
-    }
-    
-    .drop-zone {
-        margin: 1.5rem;
-        padding: 1.5rem;
-    }
-    
-    .metadata-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* ... (mantener los estilos existentes hasta .result-section) ... */
-
-.result-section {
     max-width: 1200px;
     margin: 2rem auto;
     padding: 2rem;
@@ -301,17 +223,6 @@ footer p {
     font-family: 'Courier New', monospace;
 }
 
-.preview-container {
-    max-width: 500px;
-    margin: 2rem auto;
-    padding: 1.5rem;
-    background: var(--glass-bg);
-    border-radius: 1rem;
-    backdrop-filter: var(--glass-blur);
-    box-shadow: var(--glass-shadow);
-    transition: all 0.3s ease;
-}
-
 .preview-container.hidden {
     display: none;
 }
@@ -323,8 +234,38 @@ footer p {
     margin-bottom: 1.5rem;
 }
 
-/* Responsive improvements */
+/* Animaciones */
+@keyframes slideDown {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
 @media (max-width: 768px) {
+    .header-container h1 {
+        font-size: 2.5rem;
+    }
+    
+    .drop-zone {
+        margin: 1.5rem;
+        padding: 1.5rem;
+    }
+    
     .metadata-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
@@ -334,4 +275,21 @@ footer p {
     .metadata-category {
         padding: 1rem;
     }
+}
+
+/* Footer */
+footer {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    padding: 1rem 2rem;
+    text-align: center;
+    border-top: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    margin-top: auto;
+}
+
+footer p {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-light);
 }
