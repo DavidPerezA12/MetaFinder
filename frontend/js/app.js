@@ -12,7 +12,20 @@ document.addEventListener('DOMContentLoaded', function() {
             basicInfo: document.getElementById('basicInfo').querySelector('.metadata-content'),
             technicalInfo: document.getElementById('technicalInfo').querySelector('.metadata-content'),
             gpsInfo: document.getElementById('gpsInfo').querySelector('.metadata-content'),
-            otherInfo: document.getElementById('otherInfo').querySelector('.metadata-content')
+            otherInfo: document.getElementById('otherInfo').querySelector('.metadata-content'),
+            errorContainer: document.getElementById('errorContainer') || (() => {
+                const container = document.createElement('div');
+                container.id = 'errorContainer';
+                container.className = 'error-container hidden';
+                document.querySelector('main').insertBefore(container, document.querySelector('#resultSection'));
+                return container;
+            })()
+        },
+
+        config: {
+            maxFileSize: 16 * 1024 * 1024, // 16MB
+            allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+            uploadEndpoint: '/upload'
         },
 
         init() {
@@ -61,18 +74,33 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         validateAndPreviewFile(file) {
-            if (!file.type.startsWith('image/')) {
-                this.showError('Por favor, selecciona un archivo de imagen válido.');
+            this.hideError();
+
+            if (!this.config.allowedTypes.includes(file.type)) {
+                this.showError('Por favor, selecciona un archivo de imagen válido (JPEG, PNG, GIF, o WEBP).');
                 return false;
             }
             
-            if (file.size > 16 * 1024 * 1024) {
-                this.showError('El archivo es demasiado grande. El tamaño máximo es 16MB.');
+            if (file.size > this.config.maxFileSize) {
+                this.showError(`El archivo es demasiado grande. El tamaño máximo es ${this.formatFileSize(this.config.maxFileSize)}.`);
                 return false;
             }
             
             this.previewImage(file);
             return true;
+        },
+
+        formatFileSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+            
+            return `${size.toFixed(2)} ${units[unitIndex]}`;
         },
 
         previewImage(file) {
@@ -81,6 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.elements.imagePreview.src = e.target.result;
                 this.elements.previewContainer.classList.remove('hidden');
                 this.elements.resultSection.classList.add('hidden');
+            };
+            reader.onerror = () => {
+                this.showError('Error al cargar la vista previa de la imagen.');
             };
             reader.readAsDataURL(file);
         },
@@ -98,25 +129,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async uploadFile(file) {
             this.setLoading(true);
+            this.hideError();
             
             const formData = new FormData();
             formData.append('image', file);
             
             try {
-                const response = await fetch('/upload', {
+                const response = await fetch(this.config.uploadEndpoint, {
                     method: 'POST',
                     body: formData
                 });
                 
+                const data = await response.json();
+                
                 if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
+                    throw new Error(data.error || `Error HTTP: ${response.status}`);
                 }
                 
-                const metadata = await response.json();
-                this.displayMetadata(metadata);
+                this.displayMetadata(data);
                 
             } catch (error) {
                 this.showError(`Error al procesar la imagen: ${error.message}`);
+                this.elements.resultSection.classList.add('hidden');
             } finally {
                 this.setLoading(false);
             }
@@ -125,6 +159,11 @@ document.addEventListener('DOMContentLoaded', function() {
         setLoading(isLoading) {
             this.elements.loadingIndicator.classList.toggle('hidden', !isLoading);
             this.elements.analyzeButton.disabled = isLoading;
+            if (isLoading) {
+                this.elements.dropZone.classList.add('processing');
+            } else {
+                this.elements.dropZone.classList.remove('processing');
+            }
         },
 
         displayMetadata(metadata) {
@@ -134,42 +173,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Limpiar contenedores
-            this.elements.basicInfo.innerHTML = '';
-            this.elements.technicalInfo.innerHTML = '';
-            this.elements.gpsInfo.innerHTML = '';
-            this.elements.otherInfo.innerHTML = '';
+            Object.values(this.elements).forEach(element => {
+                if (element.classList.contains('metadata-content')) {
+                    element.innerHTML = '';
+                }
+            });
 
             // Mostrar datos por categoría con explicaciones
-            if (metadata.información_básica && Object.keys(metadata.información_básica).length > 0) {
-                this.elements.basicInfo.innerHTML = '<p>Datos generales sobre el archivo, como el nombre, tamaño y tipo.</p>';
-                this.renderMetadataSection(metadata.información_básica, this.elements.basicInfo);
-            } else {
-                this.elements.basicInfo.innerHTML = '<p>No hay información básica disponible.</p>';
-            }
+            this.renderMetadataCategory('información_básica', metadata, this.elements.basicInfo,
+                'Datos generales sobre el archivo, como el nombre, tamaño y tipo.');
 
-            if (metadata.información_técnica && Object.keys(metadata.información_técnica).length > 0) {
-                this.elements.technicalInfo.innerHTML = '<p>Detalles técnicos del archivo, como la resolución, el formato y la duración.</p>';
-                this.renderMetadataSection(metadata.información_técnica, this.elements.technicalInfo);
-            } else {
-                this.elements.technicalInfo.innerHTML = '<p>No hay información técnica disponible.</p>';
-            }
+            this.renderMetadataCategory('información_técnica', metadata, this.elements.technicalInfo,
+                'Detalles técnicos del archivo, como la resolución, el formato y la duración.');
 
-            if (metadata.información_gps && Object.keys(metadata.información_gps).length > 0) {
-                this.elements.gpsInfo.innerHTML = '<p>Información de geolocalización, como la latitud, longitud y altitud.</p>';
-                this.renderMetadataSection(metadata.información_gps, this.elements.gpsInfo);
-            } else {
-                this.elements.gpsInfo.innerHTML = '<p>No hay datos GPS disponibles.</p>';
-            }
+            this.renderMetadataCategory('información_gps', metadata, this.elements.gpsInfo,
+                'Información de geolocalización, como la latitud, longitud y altitud.');
 
-            if (metadata.otros && Object.keys(metadata.otros).length > 0) {
-                this.elements.otherInfo.innerHTML = '<p>Información adicional que no encaja en las categorías anteriores.</p>';
-                this.renderMetadataSection(metadata.otros, this.elements.otherInfo);
-            } else {
-                this.elements.otherInfo.innerHTML = '<p>No hay otros metadatos disponibles.</p>';
-            }
+            this.renderMetadataCategory('otros', metadata, this.elements.otherInfo,
+                'Información adicional que no encaja en las categorías anteriores.');
 
             this.elements.resultSection.classList.remove('hidden');
             this.elements.resultSection.scrollIntoView({ behavior: 'smooth' });
+        },
+
+        renderMetadataCategory(category, metadata, container, description) {
+            const data = metadata[category];
+            if (data && Object.keys(data).length > 0) {
+                container.innerHTML = `<p class="category-description">${description}</p>`;
+                this.renderMetadataSection(data, container);
+            } else {
+                container.innerHTML = `<p class="no-data">No hay ${category.replace('_', ' ')} disponible.</p>`;
+            }
         },
 
         renderMetadataSection(data, container) {
@@ -199,11 +233,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof value === 'object') {
                 return JSON.stringify(value, null, 2);
             }
+            if (typeof value === 'number') {
+                return value.toLocaleString();
+            }
             return String(value);
         },
 
         showError(message) {
-            alert(message);
+            this.elements.errorContainer.textContent = message;
+            this.elements.errorContainer.classList.remove('hidden');
+            this.elements.errorContainer.scrollIntoView({ behavior: 'smooth' });
+        },
+
+        hideError() {
+            this.elements.errorContainer.classList.add('hidden');
+            this.elements.errorContainer.textContent = '';
         }
     };
 

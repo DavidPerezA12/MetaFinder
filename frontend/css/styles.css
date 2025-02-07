@@ -69,7 +69,12 @@ header {
 .drop-zone.dragover {
     background: rgba(255, 255, 255, 0.2);
     border-color: var(--accent-color);
-    transform: scale(1.02);
+    transform: scale(1);
+    transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.drop-zone:hover {
+    transform: scale(1.01);
 }
 
 .upload-content {
@@ -249,6 +254,17 @@ header {
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 @keyframes spin {
