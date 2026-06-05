@@ -1,43 +1,58 @@
-# Byte-compiled files
+# Python
 __pycache__/
 *.pyc
 *.pyo
-
-# Entornos virtuales de Python
+!.python-version
 env/
 venv/
-*.env
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+uv.lock
+dist/
+build/
+*.egg-info/
 
-# Archivos de configuración del sistema operativo
+# System
 .DS_Store
 Thumbs.db
 
-# Archivos de logs
+# Logs
 *.log
 
-# Node.js (si se usa para frontend)
+# Node
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# IDEs y editores
+# Editors
 .vscode/
 .idea/
 *.swp
 
-# Archivos temporales
+# Local automation/tooling
+.agents/
+.claude/
+.vercel/
+
+# Environment files
+.env
+.env.*
+
+# Temporary files
 *.tmp
 *.bak
 *.old
 
-# Archivos específicos de MetaFinder
+# MetaFinder
 frontend/node_modules/
 frontend/dist/
 backend/__pycache__/
 backend/instance/
-
-# Configuración personal
-*.env
-*.config
-
+backend/app.log
+app.log

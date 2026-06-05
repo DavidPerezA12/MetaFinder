@@ -1,34 +1,107 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
+    const getElement = (id) => {
+        const element = document.getElementById(id);
+        if (!element) {
+            throw new Error(`Missing required element: #${id}`);
+        }
+        return element;
+    };
+
+    const getMetadataContainer = (id) => {
+        const container = getElement(id).querySelector('.metadata-content');
+        if (!container) {
+            throw new Error(`Missing metadata container: #${id} .metadata-content`);
+        }
+        return container;
+    };
+    const getActionKey = ({ key }) => (key === 'Enter' || key === ' ');
+    const acceptedTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/tiff', 'image/bmp', 'image/webp']);
+    const acceptedExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'tiff', 'bmp', 'webp']);
+    const numberFormatter = new Intl.NumberFormat('en-US');
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    });
+    const keyLabels = {
+        hash: 'Hash SHA-256',
+        timestamp: 'Timestamp',
+        processed_at: 'Processed at',
+        filename: 'File name',
+        extension: 'Extension',
+        mime_type: 'MIME type',
+        size: 'Size',
+        size_bytes: 'Size in bytes',
+        size_human: 'Readable size',
+        latitude: 'Latitude',
+        longitude: 'Longitude'
+    };
+
     const MetaFinder = {
         elements: {
-            form: document.getElementById('uploadForm'),
-            fileInput: document.getElementById('imageInput'),
-            dropZone: document.getElementById('dropZone'),
-            previewContainer: document.getElementById('previewContainer'),
-            imagePreview: document.getElementById('imagePreview'),
-            analyzeButton: document.getElementById('analyzeButton'),
-            loadingIndicator: document.getElementById('loadingIndicator'),
-            resultSection: document.getElementById('resultSection'),
-            basicInfo: document.getElementById('basicInfo').querySelector('.metadata-content'),
-            technicalInfo: document.getElementById('technicalInfo').querySelector('.metadata-content'),
-            gpsInfo: document.getElementById('gpsInfo').querySelector('.metadata-content'),
-            otherInfo: document.getElementById('otherInfo').querySelector('.metadata-content'),
-            errorContainer: document.getElementById('errorContainer') || (() => {
-                const container = document.createElement('div');
-                container.id = 'errorContainer';
-                container.className = 'error-container hidden';
-                document.querySelector('main').insertBefore(container, document.querySelector('#resultSection'));
-                return container;
-            })()
+            form: getElement('uploadForm'),
+            fileInput: getElement('imageInput'),
+            dropZone: getElement('dropZone'),
+            previewContainer: getElement('previewContainer'),
+            imagePreview: getElement('imagePreview'),
+            selectedFileSummary: getElement('selectedFileSummary'),
+            analyzeButton: getElement('analyzeButton'),
+            resetButton: getElement('resetButton'),
+            copyJsonButton: getElement('copyJsonButton'),
+            downloadJsonButton: getElement('downloadJsonButton'),
+            resultSummary: getElement('resultSummary'),
+            loadingIndicator: getElement('loadingIndicator'),
+            resultSection: getElement('resultSection'),
+            basicInfo: getMetadataContainer('basicInfo'),
+            technicalInfo: getMetadataContainer('technicalInfo'),
+            gpsInfo: getMetadataContainer('gpsInfo'),
+            advancedInfo: getMetadataContainer('advancedInfo'),
+            otherInfo: getMetadataContainer('otherInfo'),
+            fileInfo: getMetadataContainer('fileInfo'),
+            errorContainer: getElement('errorContainer')
         },
 
         config: {
-            maxFileSize: 16 * 1024 * 1024, // 16MB
-            allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-            uploadEndpoint: '/upload'
+            maxFileSize: 16 * 1024 * 1024,
+            allowedTypes: acceptedTypes,
+            allowedExtensions: acceptedExtensions,
+            uploadEndpoint: '/upload',
+            metadataCategories: [
+                {
+                    key: 'basic_info',
+                    element: 'basicInfo',
+                    description: 'General image details such as format, dimensions, and color mode.'
+                },
+                {
+                    key: 'technical_info',
+                    element: 'technicalInfo',
+                    description: 'Technical properties such as resolution, aspect ratio, DPI, and channels.'
+                },
+                {
+                    key: 'gps_info',
+                    element: 'gpsInfo',
+                    description: 'GPS coordinates and altitude when available.'
+                },
+                {
+                    key: 'advanced_info',
+                    element: 'advancedInfo',
+                    description: 'Camera capture settings such as flash, metering, zoom, and white balance.'
+                },
+                {
+                    key: 'other_info',
+                    element: 'otherInfo',
+                    description: 'Additional metadata that does not fit the main groups.'
+                },
+                {
+                    key: 'file_info',
+                    element: 'fileInfo',
+                    description: 'File integrity and processing details.'
+                }
+            ]
         },
 
         init() {
+            this.dragDepth = 0;
+            this.lastMetadata = null;
             this.bindEvents();
             this.setupDragAndDrop();
         },
@@ -36,6 +109,12 @@ document.addEventListener('DOMContentLoaded', function() {
         bindEvents() {
             this.elements.fileInput.addEventListener('change', this.handleFileSelect.bind(this));
             this.elements.analyzeButton.addEventListener('click', this.handleAnalyze.bind(this));
+            this.elements.resetButton.addEventListener('click', this.resetSelectedFile.bind(this));
+            this.elements.copyJsonButton.addEventListener('click', this.copyMetadata.bind(this));
+            this.elements.downloadJsonButton.addEventListener('click', this.downloadMetadata.bind(this));
+            this.elements.form.addEventListener('submit', this.handleAnalyze.bind(this));
+            this.elements.dropZone.addEventListener('click', this.handleDropZoneClick.bind(this));
+            this.elements.dropZone.addEventListener('keydown', this.handleDropZoneKeydown.bind(this));
         },
 
         setupDragAndDrop() {
@@ -46,25 +125,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
 
-            this.elements.dropZone.addEventListener('dragover', () => {
+            this.elements.dropZone.addEventListener('dragenter', () => {
+                this.dragDepth += 1;
                 this.elements.dropZone.classList.add('dragover');
             });
 
             this.elements.dropZone.addEventListener('dragleave', () => {
-                this.elements.dropZone.classList.remove('dragover');
+                this.dragDepth = Math.max(0, this.dragDepth - 1);
+                if (this.dragDepth === 0) {
+                    this.elements.dropZone.classList.remove('dragover');
+                }
             });
 
             this.elements.dropZone.addEventListener('drop', this.handleDrop.bind(this));
+        },
+
+        handleDropZoneClick(event) {
+            if (event.target === this.elements.fileInput || event.target.closest('label')) {
+                return;
+            }
+            this.elements.fileInput.click();
+        },
+
+        handleDropZoneKeydown(event) {
+            if (!getActionKey(event)) {
+                return;
+            }
+            event.preventDefault();
+            this.elements.fileInput.click();
         },
 
         handleFileSelect(event) {
             const file = event.target.files[0];
             if (file) {
                 this.validateAndPreviewFile(file);
+            } else {
+                this.resetSelectedFile();
             }
         },
 
         handleDrop(event) {
+            this.dragDepth = 0;
             const file = event.dataTransfer.files[0];
             if (file) {
                 this.elements.fileInput.files = event.dataTransfer.files;
@@ -76,18 +177,28 @@ document.addEventListener('DOMContentLoaded', function() {
         validateAndPreviewFile(file) {
             this.hideError();
 
-            if (!this.config.allowedTypes.includes(file.type)) {
-                this.showError('Por favor, selecciona un archivo de imagen válido (JPEG, PNG, GIF, o WEBP).');
+            if (!this.isAllowedImage(file)) {
+                this.resetSelectedFile();
+                this.showError('Please choose a valid image file (JPG, PNG, GIF, TIFF, BMP, or WEBP).');
                 return false;
             }
             
             if (file.size > this.config.maxFileSize) {
-                this.showError(`El archivo es demasiado grande. El tamaño máximo es ${this.formatFileSize(this.config.maxFileSize)}.`);
+                this.resetSelectedFile();
+                this.showError(`The file is too large. The maximum size is ${this.formatFileSize(this.config.maxFileSize)}.`);
                 return false;
             }
-            
+
             this.previewImage(file);
             return true;
+        },
+
+        isAllowedImage(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            return (
+                this.config.allowedTypes.has(file.type) ||
+                this.config.allowedExtensions.has(extension)
+            );
         },
 
         formatFileSize(bytes) {
@@ -107,11 +218,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = (e) => {
                 this.elements.imagePreview.src = e.target.result;
+                this.elements.selectedFileSummary.replaceChildren(
+                    this.createSummaryItem('File', file.name),
+                    this.createSummaryItem('Type', file.type || 'Unknown'),
+                    this.createSummaryItem('Size', this.formatFileSize(file.size))
+                );
                 this.elements.previewContainer.classList.remove('hidden');
+                this.elements.dropZone.classList.add('hidden');
                 this.elements.resultSection.classList.add('hidden');
+                this.elements.analyzeButton.disabled = false;
             };
             reader.onerror = () => {
-                this.showError('Error al cargar la vista previa de la imagen.');
+                this.resetSelectedFile();
+                this.showError('Could not load the image preview.');
             };
             reader.readAsDataURL(file);
         },
@@ -120,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
             event.preventDefault();
             
             if (!this.elements.fileInput.files.length) {
-                this.showError('Por favor, selecciona una imagen primero.');
+                this.showError('Please choose an image first.');
                 return;
             }
 
@@ -143,13 +262,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.error || `Error HTTP: ${response.status}`);
+                    throw new Error(data.error || `HTTP error: ${response.status}`);
                 }
                 
                 this.displayMetadata(data);
                 
             } catch (error) {
-                this.showError(`Error al procesar la imagen: ${error.message}`);
+                this.showError(`Could not process the image: ${error.message}`);
                 this.elements.resultSection.classList.add('hidden');
             } finally {
                 this.setLoading(false);
@@ -159,6 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setLoading(isLoading) {
             this.elements.loadingIndicator.classList.toggle('hidden', !isLoading);
             this.elements.analyzeButton.disabled = isLoading;
+            this.elements.dropZone.setAttribute('aria-busy', String(isLoading));
             if (isLoading) {
                 this.elements.dropZone.classList.add('processing');
             } else {
@@ -172,53 +292,71 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Limpiar contenedores
-            Object.values(this.elements).forEach(element => {
-                if (element.classList.contains('metadata-content')) {
-                    element.innerHTML = '';
-                }
+            this.lastMetadata = metadata;
+            this.clearMetadata();
+
+            this.config.metadataCategories.forEach(({ key, element, description }) => {
+                this.renderMetadataCategory(key, metadata, this.elements[element], description);
             });
 
-            // Mostrar datos por categoría con explicaciones
-            this.renderMetadataCategory('información_básica', metadata, this.elements.basicInfo,
-                'Datos generales sobre el archivo, como el nombre, tamaño y tipo.');
-
-            this.renderMetadataCategory('información_técnica', metadata, this.elements.technicalInfo,
-                'Detalles técnicos del archivo, como la resolución, el formato y la duración.');
-
-            this.renderMetadataCategory('información_gps', metadata, this.elements.gpsInfo,
-                'Información de geolocalización, como la latitud, longitud y altitud.');
-
-            this.renderMetadataCategory('otros', metadata, this.elements.otherInfo,
-                'Información adicional que no encaja en las categorías anteriores.');
-
+            this.updateResultSummary(metadata);
             this.elements.resultSection.classList.remove('hidden');
-            this.elements.resultSection.scrollIntoView({ behavior: 'smooth' });
+        },
+
+        clearMetadata() {
+            this.config.metadataCategories.forEach(({ element }) => {
+                const container = this.elements[element];
+                container.replaceChildren();
+            });
         },
 
         renderMetadataCategory(category, metadata, container, description) {
             const data = metadata[category];
             if (data && Object.keys(data).length > 0) {
-                container.innerHTML = `<p class="category-description">${description}</p>`;
+                const descriptionElement = document.createElement('p');
+                descriptionElement.className = 'category-description';
+                descriptionElement.textContent = description;
+                container.appendChild(descriptionElement);
                 this.renderMetadataSection(data, container);
             } else {
-                container.innerHTML = `<p class="no-data">No hay ${category.replace('_', ' ')} disponible.</p>`;
+                const noData = document.createElement('p');
+                noData.className = 'no-data';
+                noData.textContent = `No ${category.replace(/_/g, ' ')} available.`;
+                container.appendChild(noData);
             }
         },
 
         renderMetadataSection(data, container) {
+            const fragment = document.createDocumentFragment();
+
             Object.entries(data).forEach(([key, value]) => {
                 const item = document.createElement('div');
                 item.className = 'metadata-item';
-                item.innerHTML = `
-                    <span class="metadata-key">${this.formatKey(key)}</span>
-                    <span class="metadata-value">${this.formatValue(value)}</span>
-                `;
-                container.appendChild(item);
+
+                const keyElement = document.createElement('span');
+                keyElement.className = 'metadata-key';
+                keyElement.textContent = this.formatKey(key);
+
+                const valueElement = document.createElement('span');
+                valueElement.className = 'metadata-value';
+                const formattedValue = this.formatValue(value);
+                valueElement.textContent = formattedValue;
+                if (formattedValue.length > 32 || typeof value === 'object') {
+                    valueElement.classList.add('is-long');
+                }
+
+                item.append(keyElement, valueElement);
+                fragment.appendChild(item);
             });
+
+            container.appendChild(fragment);
         },
 
         formatKey(key) {
+            if (keyLabels[key]) {
+                return keyLabels[key];
+            }
+
             return key
                 .replace(/([A-Z])/g, ' $1')
                 .replace(/_/g, ' ')
@@ -228,26 +366,132 @@ document.addEventListener('DOMContentLoaded', function() {
 
         formatValue(value) {
             if (value === null || value === undefined) {
-                return 'No disponible';
+                return 'Not available';
             }
             if (typeof value === 'object') {
                 return JSON.stringify(value, null, 2);
             }
             if (typeof value === 'number') {
-                return value.toLocaleString();
+                return numberFormatter.format(value);
             }
             return String(value);
+        },
+
+        createSummaryItem(label, value) {
+            const item = document.createElement('span');
+            item.className = 'summary-item';
+
+            const labelElement = document.createElement('strong');
+            labelElement.textContent = `${label}:`;
+
+            const valueElement = document.createElement('span');
+            valueElement.textContent = value;
+
+            item.append(labelElement, valueElement);
+            return item;
+        },
+
+        updateResultSummary(metadata) {
+            const fileInfo = metadata.file_info || {};
+            const bits = [];
+
+            if (fileInfo.filename) {
+                bits.push(fileInfo.filename);
+            }
+            if (fileInfo.size_human) {
+                bits.push(fileInfo.size_human);
+            }
+            if (fileInfo.processed_at || fileInfo.timestamp) {
+                const parsedDate = new Date(fileInfo.processed_at || fileInfo.timestamp);
+                if (!Number.isNaN(parsedDate.getTime())) {
+                    bits.push(`processed ${dateFormatter.format(parsedDate)}`);
+                }
+            }
+
+            this.elements.resultSummary.textContent = bits.length
+                ? bits.join(' · ')
+                : 'Metadata extracted successfully';
+        },
+
+        getMetadataJson() {
+            return JSON.stringify(this.lastMetadata, null, 2);
+        },
+
+        async copyMetadata() {
+            if (!this.lastMetadata) {
+                this.showError('There are no results to copy yet.');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(this.getMetadataJson());
+                this.setActionFeedback(this.elements.copyJsonButton, 'Copied');
+            } catch (error) {
+                this.showError('Could not copy the JSON. Try downloading it instead.');
+            }
+        },
+
+        downloadMetadata() {
+            if (!this.lastMetadata) {
+                this.showError('There are no results to download yet.');
+                return;
+            }
+
+            const fileInfo = this.lastMetadata.file_info || {};
+            const baseName = (fileInfo.filename || 'metafinder-result')
+                .replace(/\.[^/.]+$/, '')
+                .replace(/[^a-z0-9_-]/gi, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '') || 'metafinder-result';
+            const blob = new Blob([this.getMetadataJson()], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = `${baseName}-metadata.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            this.setActionFeedback(this.elements.downloadJsonButton, 'Downloaded');
+        },
+
+        setActionFeedback(button, label) {
+            const original = button.textContent;
+            button.textContent = label;
+            button.disabled = true;
+
+            window.setTimeout(() => {
+                button.textContent = original;
+                button.disabled = false;
+            }, 1400);
         },
 
         showError(message) {
             this.elements.errorContainer.textContent = message;
             this.elements.errorContainer.classList.remove('hidden');
-            this.elements.errorContainer.scrollIntoView({ behavior: 'smooth' });
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            this.elements.errorContainer.scrollIntoView({
+                behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                block: 'nearest'
+            });
         },
 
         hideError() {
             this.elements.errorContainer.classList.add('hidden');
             this.elements.errorContainer.textContent = '';
+        },
+
+        resetSelectedFile() {
+            this.lastMetadata = null;
+            this.elements.fileInput.value = '';
+            this.elements.imagePreview.removeAttribute('src');
+            this.elements.selectedFileSummary.replaceChildren();
+            this.elements.previewContainer.classList.add('hidden');
+            this.elements.dropZone.classList.remove('hidden');
+            this.elements.resultSection.classList.add('hidden');
+            this.elements.analyzeButton.disabled = true;
+            this.hideError();
         }
     };
 

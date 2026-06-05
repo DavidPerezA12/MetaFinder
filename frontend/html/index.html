@@ -1,79 +1,122 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Herramienta para analizar metadatos de imágenes">
-    <meta name="theme-color" content="#2c5364">
-    <meta name="robots" content="index, follow">
-    <meta property="og:title" content="MetaFinder - Explora tus imágenes">
-    <meta property="og:description" content="Herramienta para analizar metadatos de imágenes">
-    <title>MetaFinder - Explora tus imágenes</title>
+    <meta name="description" content="Extract, validate, and review image metadata, including EXIF, GPS, file integrity, and unmapped tags.">
+    <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#F9FAFB" media="(prefers-color-scheme: light)">
+    <meta name="color-scheme" content="light dark">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="MetaFinder">
+    <meta property="og:description" content="A focused image metadata inspector with EXIF, GPS, SHA-256 hashing, and clean JSON export.">
+    <meta property="og:image" content="/static/img/upload-icon.svg">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="MetaFinder">
+    <meta name="twitter:description" content="Inspect image metadata and export the results in seconds.">
+    <title>MetaFinder</title>
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/img/upload-icon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preload" href="../static/css/styles.css" as="style">
-    <link rel="preload" href="../static/js/app.js" as="script">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap">
-    <link rel="stylesheet" href="../static/css/styles.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <header>
-        <div class="header-container">
-            <h1>MetaFinder</h1>
-            <p>Analiza los metadatos de tus imágenes</p>
-        </div>
-    </header>
-    
-    <main>
-        <section class="upload-section">
-            <div id="dropZone" class="drop-zone" aria-label="Zona de arrastrar y soltar">
-                <form id="uploadForm" enctype="multipart/form-data">
-                    <div class="upload-content">
-                        <img src="../static/img/upload-icon.svg" alt="Ícono de subida" class="upload-icon">
-                        <p>Arrastra y suelta tu imagen aquí o</p>
-                        <label for="imageInput" class="custom-file-input">
-                            Selecciona un archivo
-                            <input type="file" id="imageInput" name="image" accept="image/*" hidden>
-                        </label>
-                        <p class="file-info">Formatos soportados: JPG, PNG, GIF (máx. 16MB)</p>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="app-title">MetaFinder</h1>
+            <p class="app-subtitle">Image metadata inspector</p>
+        </header>
+
+        <main class="main-content">
+            <section class="upload-section">
+                <div id="dropZone" class="upload-card" role="button" tabindex="0" aria-label="Drag, drop, or choose an image" aria-describedby="fileLimits">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="upload-inner">
+                            <div class="upload-icon-wrapper">
+                                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                                </svg>
+                            </div>
+                            <h2 class="upload-heading">Upload an image</h2>
+                            <p class="upload-text">Drop an image here or choose one from your device</p>
+                            <label for="imageInput" class="btn-primary">
+                                Choose image
+                                <input type="file" id="imageInput" name="image" accept="image/jpeg,image/png,image/gif,image/tiff,image/bmp,image/webp" class="visually-hidden">
+                            </label>
+                            <p id="fileLimits" class="file-limits">Supported formats: JPG, PNG, GIF, TIFF, BMP, WEBP (max 16 MB)</p>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="preview-container hidden" id="previewContainer">
+                    <div class="preview-card">
+                        <img id="imagePreview" alt="Image preview">
+                        <div class="selected-file" id="selectedFileSummary" aria-live="polite"></div>
+                        <div class="preview-actions">
+                            <button id="analyzeButton" class="btn-primary" type="button" disabled>Analyze image</button>
+                            <button id="resetButton" class="btn-secondary" type="button">Change image</button>
+                        </div>
                     </div>
-                </form>
-            </div>
-
-            <div class="preview-container hidden" id="previewContainer">
-                <img id="imagePreview" src="#" alt="Vista previa de la imagen">
-                <button id="analyzeButton" class="analyze-btn">Analizar Imagen</button>
-            </div>
-
-            <div id="loadingIndicator" class="loading-indicator hidden" role="status" aria-live="polite"></div>
-        </section>
-
-        <section id="resultSection" class="result-section hidden">
-            <h2>Metadatos de la Imagen</h2>
-            <div class="metadata-grid">
-                <div id="basicInfo" class="metadata-category">
-                    <h3>Información Básica</h3>
-                    <div class="metadata-content"></div>
                 </div>
-                <div id="technicalInfo" class="metadata-category">
-                    <h3>Información Técnica</h3>
-                    <div class="metadata-content"></div>
-                </div>
-                <div id="gpsInfo" class="metadata-category">
-                    <h3>Datos GPS</h3>
-                    <div class="metadata-content"></div>
-                </div>
-                <div id="otherInfo" class="metadata-category">
-                    <h3>Otros Detalles</h3>
-                    <div class="metadata-content"></div>
-                </div>
-            </div>
-        </section>
-    </main>
 
-    <footer>
-        <p>MetaFinder © 2025</p>
-    </footer>
-    
-    <script src="../static/js/app.js"></script>
+                <div id="loadingIndicator" class="loading-state hidden" role="status" aria-live="polite">
+                    <div class="spinner-ring"></div>
+                    <p>Reading metadata...</p>
+                </div>
+
+                <div id="errorContainer" class="error-banner hidden" role="alert"></div>
+            </section>
+
+            <section id="resultSection" class="result-section hidden">
+                <div class="result-header">
+                    <div>
+                        <h2>Analysis results</h2>
+                        <p id="resultSummary">Metadata extracted successfully</p>
+                    </div>
+                    <div class="result-actions" aria-label="Result actions">
+                        <button id="copyJsonButton" class="btn-secondary" type="button">Copy JSON</button>
+                        <button id="downloadJsonButton" class="btn-secondary" type="button">Download JSON</button>
+                    </div>
+                </div>
+
+                <div class="cards-grid">
+                    <div id="basicInfo" class="data-card">
+                        <h3 class="card-title">Basic info</h3>
+                        <div class="metadata-content"></div>
+                    </div>
+                    <div id="technicalInfo" class="data-card">
+                        <h3 class="card-title">Technical details</h3>
+                        <div class="metadata-content"></div>
+                    </div>
+                    <div id="gpsInfo" class="data-card">
+                        <h3 class="card-title">Location</h3>
+                        <div class="metadata-content"></div>
+                    </div>
+                    <div id="advancedInfo" class="data-card">
+                        <h3 class="card-title">Capture settings</h3>
+                        <div class="metadata-content"></div>
+                    </div>
+                    <div id="otherInfo" class="data-card">
+                        <h3 class="card-title">Other details</h3>
+                        <div class="metadata-content"></div>
+                    </div>
+                    <div id="fileInfo" class="data-card card-wide">
+                        <h3 class="card-title">File integrity</h3>
+                        <div class="metadata-content"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <span>MetaFinder</span>
+            <a class="footer-link" href="https://github.com/DavidPerezA12/MetaFinder" target="_blank" rel="noopener noreferrer" aria-label="Open MetaFinder on GitHub">
+                <span class="footer-icon" aria-hidden="true"></span>
+            </a>
+        </footer>
+    </div>
+    <script src="/static/js/app.js"></script>
 </body>
 </html>
